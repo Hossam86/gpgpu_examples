@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define N 2048 * 2048
 
@@ -23,13 +24,16 @@ int main() {
     b[i] = i;
   }
 
+  clock_t start = clock();
+
   add(a, b, c, N);
 
-  //   for (int i = 0; i < N; ++i) {
-  //     printf("c[%d]: %d\n", i, c[i]);
-  //   }
+  clock_t end = clock();
 
+  double duration = (double)(end - start) / CLOCKS_PER_SEC;
   free(a);
   free(b);
   free(c);
+
+  printf("elpased time %f", duration);
 }

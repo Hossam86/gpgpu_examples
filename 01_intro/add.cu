@@ -1,3 +1,4 @@
+#include <ctime>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,20 +40,26 @@ int main() {
   cudaMemcpy(da, a, bytecount, cudaMemcpyHostToDevice);
   cudaMemcpy(db, b, bytecount, cudaMemcpyHostToDevice);
 
+  clock_t start = clock();
+
   // lunch kernel on gpu
   add<<<(N + M - 1) / M, M>>>(da, db, dc, N);
-
   // copy results back to host
   cudaMemcpy(c, dc, bytecount, cudaMemcpyDeviceToHost);
 
-  // for (int i = 0; i < N; ++i) {
-  //   printf("c[%d]: %d\n", i, c[i]);
-  // }
   free(a);
   free(b);
   free(c);
   cudaFree(da);
   cudaFree(db);
   cudaFree(dc);
+
+  // end
+  clock_t end = clock();
+
+  double duration = (double)(end - start);
+
+  printf("time: %f ", duration / CLOCKS_PER_SEC);
+
   return 0;
 }
