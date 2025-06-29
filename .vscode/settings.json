@@ -1,0 +1,10 @@
+{
+    "cmake.configureArgs": [
+        "-DCPM_SOURCE_CACHE=C:/projects/cpm_cache",
+        "-DOpenCV_DIR=/home/sg18294/samples/opencv/build/install/lib/cmake/opencv4"
+    ],
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build/",
+        "--header-insertion=never"
+    ],
+}
