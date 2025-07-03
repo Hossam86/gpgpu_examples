@@ -8,9 +8,9 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/01_introduction/problem_set_1/HW1",
+            "program": "${workspaceFolder}/build/02_communication_patterns/problem_set_2/HW2",
             "args": [
-                "/home/sg18294/samples/gpgpu_examples/01_introduction/problem_set_1/cinque_terre_small.jpg"
+                "/home/sg18294/samples/gpgpu_examples/02_communication_patterns/problem_set_2/cinque_terre_small.jpg"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
