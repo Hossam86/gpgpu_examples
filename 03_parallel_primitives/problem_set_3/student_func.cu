@@ -79,6 +79,7 @@
 
 */
 #include <cuda.h>
+#include "utils.h"
 
 __device__ float _min(float a, float b)
 {
@@ -110,7 +111,7 @@ __global__ void minmax_reduce_global(float* dout, float* din, unsigned int n,
 	}
 }
 
-__global__ void minmax_reduce_shared(float* dout, float* din, unsigned int n,
+__global__ void minmax_reduce_shared(float* dout, const float* din, unsigned int n,
 	bool isMin)
 {
 	extern __shared__ float sdata[];
@@ -177,6 +178,37 @@ __global__ void scan_hills_steele(unsigned int* dout, const unsigned* d_in, int 
 	dout[tid] = temp[pout * size + tid];
 }
 
+float reduce(const float* d_logLuminance, int input_size, bool isMin)
+{
+	int THREAD_PER_BLOCK = 32;
+	int numBlOCKS = (input_size + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK;
+
+	// allocate memory for intermediate results
+	float* d_out;
+	checkCudaErrors(cudaMalloc(&d_out, numBlOCKS * sizeof(float)));
+	minmax_reduce_shared<<<numBlOCKS, THREAD_PER_BLOCK, THREAD_PER_BLOCK * sizeof(float)>>>(d_out, d_logLuminance, input_size, isMin);
+	cudaDeviceSynchronize();
+
+	THREAD_PER_BLOCK = numBlOCKS;
+	numBlOCKS = 1;
+	float results;
+	minmax_reduce_shared<<<numBlOCKS, THREAD_PER_BLOCK, THREAD_PER_BLOCK * sizeof(float)>>>(&results, d_out, input_size, isMin);
+
+	return results;
+}
+
+unsigned int* compute_hisograme(const float* const d_logLuminance, int numBins, int input_size, float minVal, float range)
+{
+	unsigned int* hist_out;
+	checkCudaErrors(cudaMalloc(&hist_out, sizeof(unsigned int)));
+	checkCudaErrors(cudaMemset(hist_out, 0, numBins * sizeof(unsigned int)));
+	int THREAD_PER_BLOCK = 32;
+	int BLOCKS = (input_size + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK;
+	histo_atmoic<<<BLOCKS, THREAD_PER_BLOCK>>>(hist_out, d_logLuminance, numBins, input_size, minVal, range);
+	cudaDeviceSynchronize();
+	return hist_out;
+}
+
 void your_histogram_and_prefixsum(const float* const d_logLuminance,
 	unsigned int* const d_cdf, float& min_logLum,
 	float& max_logLum, const size_t numRows,
@@ -186,18 +218,21 @@ void your_histogram_and_prefixsum(const float* const d_logLuminance,
 	/*Here are the steps you need to implement
 	  1) find the minimum and maximum value in the input logLuminance channel
 		 store in min_logLum and max_logLum*/
+	// reduce
 	int n = numRows * numCols;
-	int BLOCK_SIZE = 32;
-	int GRIDSIZE = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	minmax_reduce_global<<<dim3(GRIDSIZE, 1, 1), dim3(BLOCK_SIZE, 1, 1)>>>(
-		&min_logLum, d_logLuminance, n, true)
+	min_logLum = reduce(d_logLuminance, n, true);
+	max_logLum = reduce(d_logLuminance, n, false);
 
 	// 2) subtract them to find the range
+	float range = max_logLum - min_logLum;
 
 	/*3) generate a histogram of all the values in the logLuminance channel using
 	   the formula: bin = (lum[i] - lumMin) / lumRange * numBins*/
 
+	unsigned int* d_hist = compute_hisograme(d_logLuminance, numBins, n, min_logLum, range);
+
 	/*4) Perform an exclusive scan (prefix sum) on the histogram to get
 	   the cumulative distribution of luminance values (this should go in the
 	   incoming d_cdf pointer which already has been allocated for you)       */
+	scan_hills_steele<<<1, numBins, 2 * numBins * sizeof(unsigned int)>>>(d_cdf, d_hist, numBins);
 }
