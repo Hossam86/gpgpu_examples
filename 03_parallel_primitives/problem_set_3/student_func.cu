@@ -149,6 +149,34 @@ __global__ void histo_atmoic(unsigned int* out_histo, const float* d_in,
 	atomicAdd(&out_histo[global_idx], 1);
 }
 
+//--------HILLIS-STEELE SCAN----------
+// Optimal step efficiency (histogram is a relatively small vector)
+
+__global__ void scan_hills_steele(unsigned int* dout, const unsigned* d_in, int size)
+{
+	extern __shared__ unsigned int temp[];
+
+	int tid = threadIdx.x;
+	temp[tid] = tid > 0 ? d_in[tid - 1] : 0;
+	__syncthreads();
+
+	int pin = 1;
+	int pout = 0;
+
+	// double buffered
+	for (int off = 1; off < size; off <<= 1)
+	{
+		pout = 1 - pout;
+		pin = 1 - pout;
+		if (tid >= off)
+			temp[size * pout + tid] = temp[size * pin + tid] + temp[size * pin + tid - off];
+		else
+			temp[size * pout + tid] = temp[size * pin + tid];
+		__syncthreads();
+	}
+	dout[tid] = temp[pout * size + tid];
+}
+
 void your_histogram_and_prefixsum(const float* const d_logLuminance,
 	unsigned int* const d_cdf, float& min_logLum,
 	float& max_logLum, const size_t numRows,
