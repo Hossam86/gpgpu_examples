@@ -33,52 +33,53 @@
 
 #include "utils.h"
 
-__global__ void rgba_to_greyscale(const uchar4 *const rgbaImage,
-                                  unsigned char *const greyImage, int numRows,
-                                  int numCols) {
-  // TODO
-  // Fill in the kernel to convert from color to greyscale
-  // the mapping from components of a uchar4 to RGBA is:
-  //  .x -> R ; .y -> G ; .z -> B ; .w -> A
-  //
-  // The output (greyImage) at each pixel should be the result of
-  // applying the formula: output = .299f * R + .587f * G + .114f * B;
-  // Note: We will be ignoring the alpha channel for this conversion
+__global__ void rgba_to_greyscale(const uchar4* const rgbaImage,
+	unsigned char* const greyImage, int numRows,
+	int numCols)
+{
+	// TODO
+	// Fill in the kernel to convert from color to greyscale
+	// the mapping from components of a uchar4 to RGBA is:
+	//  .x -> R ; .y -> G ; .z -> B ; .w -> A
+	//
+	// The output (greyImage) at each pixel should be the result of
+	// applying the formula: output = .299f * R + .587f * G + .114f * B;
+	// Note: We will be ignoring the alpha channel for this conversion
 
-  // First create a mapping from the 2D block and grid locations
-  // to an absolute 2D location in the image, then use that to
-  // calculate a 1D offset
-  int x = threadIdx.x + blockDim.x * blockIdx.x;
-  int y = threadIdx.y + blockDim.y * blockIdx.y;
-  if (x < numRows && y < numCols) {
-    int offset = x * numCols + y;
-    greyImage[offset] = .299f * rgbaImage[offset].x +
-                        .587f * rgbaImage[offset].y +
-                        .114f * rgbaImage[offset].z;
-  }
+	// First create a mapping from the 2D block and grid locations
+	// to an absolute 2D location in the image, then use that to
+	// calculate a 1D offset
+	int x = threadIdx.x + blockDim.x * blockIdx.x;
+	int y = threadIdx.y + blockDim.y * blockIdx.y;
+	if (x < numRows && y < numCols)
+	{
+		int offset = x * numCols + y;
+		greyImage[offset] = .299f * rgbaImage[offset].x + .587f * rgbaImage[offset].y + .114f * rgbaImage[offset].z;
+	}
 }
 
-void your_rgba_to_greyscale(const uchar4 *const h_rgbaImage,
-                            uchar4 *const d_rgbaImage,
-                            unsigned char *const d_greyImage, size_t numRows,
-                            size_t numCols) {
-  // You must fill in the correct sizes for the blockSize and gridSize
-  // currently only one block with one thread is being launched
-  const int THREADS_PER_BLOCK_X = 32;
-  const int THREADS_PER_BLOCK_Y = 32;
+void your_rgba_to_greyscale(const uchar4* const h_rgbaImage,
+	uchar4* const								d_rgbaImage,
+	unsigned char* const d_greyImage, size_t numRows,
+	size_t numCols)
+{
+	// You must fill in the correct sizes for the blockSize and gridSize
+	// currently only one block with one thread is being launched
+	const int THREADS_PER_BLOCK_X = 32;
+	const int THREADS_PER_BLOCK_Y = 32;
 
-  const int GRIDSIZE_X =
-      (numRows + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X;
+	const int GRIDSIZE_X =
+		(numRows + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X;
 
-  const int GRIDSIZE_y =
-      (numCols + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y;
+	const int GRIDSIZE_y =
+		(numCols + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y;
 
-  const dim3 blockSize(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, 1); // TODO
-  const dim3 gridSize(GRIDSIZE_X, GRIDSIZE_y, 1);                    // TODO
+	const dim3 blockSize(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, 1); // TODO
+	const dim3 gridSize(GRIDSIZE_X, GRIDSIZE_y, 1);					   // TODO
 
-  rgba_to_greyscale<<<gridSize, blockSize>>>(d_rgbaImage, d_greyImage, numRows,
-                                             numCols);
+	rgba_to_greyscale<<<gridSize, blockSize>>>(d_rgbaImage, d_greyImage, numRows,
+		numCols);
 
-  cudaDeviceSynchronize();
-  checkCudaErrors(cudaGetLastError());
+	cudaDeviceSynchronize();
+	checkCudaErrors(cudaGetLastError());
 }

@@ -2,64 +2,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-__global__ void add(int *a, int *b, int *c, int n) {
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n)
-    c[idx] = a[idx] + b[idx];
+__global__ void add(int* a, int* b, int* c, int n)
+{
+	int idx = threadIdx.x + blockIdx.x * blockDim.x;
+	if (idx < n)
+		c[idx] = a[idx] + b[idx];
 }
 
 #define N 2048 * 2048
 #define M 512
 
-int main() {
+int main()
+{
 
-  // host data
-  int *a, *b, *c;
+	// host data
+	int *a, *b, *c;
 
-  int bytecount = sizeof(int) * N;
+	int bytecount = sizeof(int) * N;
 
-  // allocate data on host
+	// allocate data on host
 
-  a = (int *)malloc(bytecount);
-  b = (int *)malloc(bytecount);
-  c = (int *)malloc(bytecount);
-  for (int i = 0; i < N; ++i) {
+	a = (int*)malloc(bytecount);
+	b = (int*)malloc(bytecount);
+	c = (int*)malloc(bytecount);
+	for (int i = 0; i < N; ++i)
+	{
 
-    a[i] = i;
-    b[i] = i;
-  }
+		a[i] = i;
+		b[i] = i;
+	}
 
-  // device copies
-  int *da, *db, *dc;
+	// device copies
+	int *da, *db, *dc;
 
-  cudaMalloc((void **)&da, bytecount);
-  cudaMalloc((void **)&db, bytecount);
-  cudaMalloc((void **)&dc, bytecount);
+	cudaMalloc((void**)&da, bytecount);
+	cudaMalloc((void**)&db, bytecount);
+	cudaMalloc((void**)&dc, bytecount);
 
-  // copy from host to device
-  cudaMemcpy(da, a, bytecount, cudaMemcpyHostToDevice);
-  cudaMemcpy(db, b, bytecount, cudaMemcpyHostToDevice);
+	// copy from host to device
+	cudaMemcpy(da, a, bytecount, cudaMemcpyHostToDevice);
+	cudaMemcpy(db, b, bytecount, cudaMemcpyHostToDevice);
 
-  clock_t start = clock();
+	clock_t start = clock();
 
-  // lunch kernel on gpu
-  add<<<(N + M - 1) / M, M>>>(da, db, dc, N);
-  // copy results back to host
-  cudaMemcpy(c, dc, bytecount, cudaMemcpyDeviceToHost);
+	// lunch kernel on gpu
+	add<<<(N + M - 1) / M, M>>>(da, db, dc, N);
+	// copy results back to host
+	cudaMemcpy(c, dc, bytecount, cudaMemcpyDeviceToHost);
 
-  free(a);
-  free(b);
-  free(c);
-  cudaFree(da);
-  cudaFree(db);
-  cudaFree(dc);
+	free(a);
+	free(b);
+	free(c);
+	cudaFree(da);
+	cudaFree(db);
+	cudaFree(dc);
 
-  // end
-  clock_t end = clock();
+	// end
+	clock_t end = clock();
 
-  double duration = (double)(end - start);
+	double duration = (double)(end - start);
 
-  printf("time: %f ", duration / CLOCKS_PER_SEC);
+	printf("time: %f ", duration / CLOCKS_PER_SEC);
 
-  return 0;
+	return 0;
 }

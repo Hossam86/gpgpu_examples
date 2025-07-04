@@ -79,69 +79,87 @@
 
 */
 
-__device__ float _min(float a, float b) { return a > b ? b : a; }
-__device__ float _max(float a, float b) { return a > b ? a : b; }
-
-__global__ void minmax_reduce_global(float *dout, float *din, unsigned int n,
-                                     bool isMin) {
-  int idx = threadIdx.x + blockDim.x * blockIdx.x;
-  int tid = threadIdx.x;
-
-  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-    if (tid < s) {
-      din[idx] =
-          isMin ? _min(din[idx], din[idx + s]) : _max(din[idx], din[idx + s]);
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    dout[blockIdx.x] = din[idx];
-  }
+__device__ float _min(float a, float b)
+{
+	return a > b ? b : a;
+}
+__device__ float _max(float a, float b)
+{
+	return a > b ? a : b;
 }
 
-__global__ void minmax_reduce_shared(float *dout, float *din, unsigned int n,
-                                     bool isMin) {
-  extern __shared__ float sdata[];
+__global__ void minmax_reduce_global(float* dout, float* din, unsigned int n,
+	bool isMin)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	int tid = threadIdx.x;
 
-  int tid = threadIdx.x;
-  int global_id = tid + blockDim.x * blockIdx.x;
-  if (global_id >= n)
-    sdata[tid] = 0;
-  else
-    sdata[tid] = din[global_id];
-  __syncthreads();
-  for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-    if (tid < s)
-      sdata[tid] = isMin ? _min(sdata[tid], sdata[tid + s])
-                         : _max(sdata[tid], sdata[tid + s]);
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    dout[blockIdx.x] = sdata[0];
-  }
+	for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+	{
+		if (tid < s)
+		{
+			din[idx] =
+				isMin ? _min(din[idx], din[idx + s]) : _max(din[idx], din[idx + s]);
+		}
+		__syncthreads();
+	}
+	if (tid == 0)
+	{
+		dout[blockIdx.x] = din[idx];
+	}
 }
 
-void your_histogram_and_prefixsum(const float *const d_logLuminance,
-                                  unsigned int *const d_cdf, float &min_logLum,
-                                  float &max_logLum, const size_t numRows,
-                                  const size_t numCols, const size_t numBins) {
-  // TODO
-  /*Here are the steps you need to implement
-    1) find the minimum and maximum value in the input logLuminance channel
-       store in min_logLum and max_logLum*/
-  int n = numRows * numCols;
-  int BLOCK_SIZE = 32;
-  int GRIDSIZE = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
-  minmax_reduce<<<dim3(GRIDSIZE, 1, 1), dim3(BLOCK_SIZE, 1, 1)>>>(
-      &min_logLum, d_logLuminance, n, true)
+__global__ void minmax_reduce_shared(float* dout, float* din, unsigned int n,
+	bool isMin)
+{
+	extern __shared__ float sdata[];
 
-  // 2) subtract them to find the range
+	int tid = threadIdx.x;
+	int global_id = tid + blockDim.x * blockIdx.x;
+	if (global_id >= n)
+		sdata[tid] = 0;
+	else
+		sdata[tid] = din[global_id];
+	__syncthreads();
+	for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+	{
+		if (tid < s)
+			sdata[tid] = isMin ? _min(sdata[tid], sdata[tid + s])
+							   : _max(sdata[tid], sdata[tid + s]);
+		__syncthreads();
+	}
 
-  /*3) generate a histogram of all the values in the logLuminance channel using
-     the formula: bin = (lum[i] - lumMin) / lumRange * numBins*/
+	if (tid == 0)
+	{
+		dout[blockIdx.x] = sdata[0];
+	}
+}
 
-  /*4) Perform an exclusive scan (prefix sum) on the histogram to get
-     the cumulative distribution of luminance values (this should go in the
-     incoming d_cdf pointer which already has been allocated for you)       */
+__global__ void histo_atmoic(unsigned int* out_histo, const float* d_in,
+	int numBins, int input_size, float minval,
+	float range) {}
+
+void your_histogram_and_prefixsum(const float* const d_logLuminance,
+	unsigned int* const d_cdf, float& min_logLum,
+	float& max_logLum, const size_t numRows,
+	const size_t numCols, const size_t numBins)
+{
+	// TODO
+	/*Here are the steps you need to implement
+	  1) find the minimum and maximum value in the input logLuminance channel
+		 store in min_logLum and max_logLum*/
+	int n = numRows * numCols;
+	int BLOCK_SIZE = 32;
+	int GRIDSIZE = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+	minmax_reduce_global<<<dim3(GRIDSIZE, 1, 1), dim3(BLOCK_SIZE, 1, 1)>>>(
+		&min_logLum, d_logLuminance, n, true)
+
+	// 2) subtract them to find the range
+
+	/*3) generate a histogram of all the values in the logLuminance channel using
+	   the formula: bin = (lum[i] - lumMin) / lumRange * numBins*/
+
+	/*4) Perform an exclusive scan (prefix sum) on the histogram to get
+	   the cumulative distribution of luminance values (this should go in the
+	   incoming d_cdf pointer which already has been allocated for you)       */
 }
