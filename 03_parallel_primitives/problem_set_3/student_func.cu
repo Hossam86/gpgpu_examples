@@ -78,6 +78,7 @@
   steps.
 
 */
+#include <cuda.h>
 
 __device__ float _min(float a, float b)
 {
@@ -137,7 +138,16 @@ __global__ void minmax_reduce_shared(float* dout, float* din, unsigned int n,
 
 __global__ void histo_atmoic(unsigned int* out_histo, const float* d_in,
 	int numBins, int input_size, float minval,
-	float range) {}
+	float range)
+{
+	int tid = threadIdx.x;
+	int global_idx = tid + blockDim.x * blockIdx.x;
+	if (global_idx >= input_size)
+		return;
+	int bin = ((d_in[global_idx] - minval) * numBins) / range;
+	bin = bin == numBins ? numBins - 1 : bin;
+	atomicAdd(&out_histo[global_idx], 1);
+}
 
 void your_histogram_and_prefixsum(const float* const d_logLuminance,
 	unsigned int* const d_cdf, float& min_logLum,
